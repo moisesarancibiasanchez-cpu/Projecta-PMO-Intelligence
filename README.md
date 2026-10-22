@@ -1,7 +1,3 @@
-# Projecta-PMO-Intelligence
-Plataforma de inteligencia para PMO que convierte reuniones, correos, tickets y planes en decisiones trazables, tareas ejecutables y reportes ejecutivos. Integra IA, RAG y agentes para automatizar actas, riesgos, compromisos, historias de usuario y dashboards de portafolio.
-
-
 # Projecta PMO Intelligence
 
 **Projecta PMO Intelligence** es una plataforma de inteligencia para PMO que convierte reuniones, correos, tickets, documentos y planes de proyecto en decisiones trazables, tareas ejecutables y reportes ejecutivos.
