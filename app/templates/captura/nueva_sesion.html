@@ -1,0 +1,252 @@
+{#- ---------------------------------------------------------------------------
+  nueva_sesion.html — pantalla de captura de Projecta Capture.
+
+  La pantalla "Nueva sesión de captura" del MVP. Tiene todo lo que el
+  enunciado pide, y en el orden en que se usa:
+
+  1. Datos de la sesión: proyecto, título, descripción, participantes y
+     finalidad.
+  2. Aviso de privacidad y política de conservación.
+  3. Declaración de autorización, que es la **puerta**: sin ella no se
+     puede pasar a READY, y sin READY no se puede grabar.
+  4. Fuentes de audio: micrófono y fuente compartida, con el modo
+     solicitado.
+  5. Medidores de nivel **separados** para cada fuente.
+  6. Estado de conexión, duración y estado de grabación, siempre
+     visibles.
+  7. Controles: iniciar, pausar, reanudar, detener y cancelar.
+  8. Notas manuales con marca de tiempo.
+  9. Acceso a la transcripción y a los resultados.
+
+  Dos reglas que la plantilla respeta y que conviene no romper al
+  tocarla:
+
+  · **No se pide ningún permiso al cargar la página.** El botón de
+    permisos existe para que la persona lo pulse; el script no llama a
+    `getUserMedia` ni a `getDisplayMedia` hasta que se pulsa iniciar.
+  · **El estado de grabación es siempre visible.** El indicador está en
+    la parte superior, no se oculta, y no desaparece al pausar.
+  --------------------------------------------------------------------------- -#}
+{% extends "base.html" %}
+
+{% block title %}Nueva sesión de captura · Projecta PMO Intelligence{% endblock %}
+
+{% block content %}
+<section class="captura">
+
+  <header class="captura-cabecera">
+    <h1>Nueva sesión de captura</h1>
+    <div class="captura-estado">
+      <span id="indicador-estado" class="indicador">Sin iniciar</span>
+      <span id="estado-conexion" class="conexion">Conectado</span>
+      <span id="duracion" class="duracion">00:00</span>
+    </div>
+  </header>
+
+  <div class="captura-columnas">
+
+    <div class="captura-principal">
+
+      {#- 1. Datos de la sesión ------------------------------------------ -#}
+      <section class="bloque">
+        <h2>1 · Datos de la sesión</h2>
+
+        <label class="campo">
+          <span>Proyecto</span>
+          <input type="text" id="campo-proyecto" value="{{ proyecto_id or '' }}"
+                 readonly>
+        </label>
+
+        <label class="campo">
+          <span>Título</span>
+          <input type="text" id="campo-titulo" maxlength="200"
+                 value="{{ sesion.titulo if sesion else '' }}">
+        </label>
+
+        <label class="campo">
+          <span>Descripción</span>
+          <textarea id="campo-descripcion" rows="2">{{ sesion.descripcion if sesion else '' }}</textarea>
+        </label>
+
+        <label class="campo">
+          <span>Finalidad de la captura</span>
+          <input type="text" id="campo-finalidad" maxlength="400"
+                 value="{{ sesion.finalidad if sesion else '' }}">
+        </label>
+
+        <h3>Participantes</h3>
+        <p class="ayuda">
+          Se declaran a mano. El sistema no deduce quién es quién a partir
+          de una lista de asistentes: la etiqueta de hablante y la identidad
+          son cosas distintas, y la identidad la valida una persona.
+        </p>
+        <ul id="lista-participantes" class="lista-participantes">
+          {% for participante in participantes or [] %}
+          <li>
+            <strong>{{ participante.nombre }}</strong>
+            {% if participante.rol %} · {{ participante.rol }}{% endif %}
+            {% if participante.informado %} · informado{% else %} · sin informar{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      {#- 2. Aviso de privacidad y política de conservación ------------- -#}
+      <section class="bloque">
+        <h2>2 · Aviso de privacidad</h2>
+        <div class="aviso">
+          <p>{{ aviso_privacidad }}</p>
+        </div>
+        <h3>Política de conservación</h3>
+        <ul class="politica">
+          <li>Transcripción: {{ politica.dias_transcripcion if politica else 90 }} días</li>
+          <li>Elementos extraídos: {{ politica.dias_elementos if politica else 365 }} días</li>
+          <li>Notas manuales: {{ politica.dias_notas if politica else 365 }} días</li>
+          <li>
+            Audio original:
+            {% if politica and politica.conservar_audio %}
+              {{ politica.dias_audio }} días
+            {% else %}
+              <strong>no se conserva</strong> (se elimina al transcribir)
+            {% endif %}
+          </li>
+        </ul>
+      </section>
+
+      {#- 3. Declaración de autorización --------------------------------- -#}
+      <section class="bloque">
+        <h2>3 · Autorización para registrar</h2>
+        <div class="aviso aviso-autorizacion">
+          <p>{{ texto_autorizacion }}</p>
+        </div>
+        <p class="ayuda">
+          Esta declaración es <strong>del organizador</strong>. No sustituye
+          al consentimiento de cada participante, y el sistema no lo comprueba
+          ni lo puede comprobar.
+        </p>
+        <button type="button" id="boton-autorizar" class="boton boton-principal">
+          Registrar la declaración de autorización
+        </button>
+        <p id="estado-autorizacion" class="estado-autorizacion">
+          {% if autorizada %}Autorización registrada.{% else %}Pendiente.{% endif %}
+        </p>
+      </section>
+
+      {#- 4. Fuentes de audio -------------------------------------------- -#}
+      <section class="bloque">
+        <h2>4 · Fuentes de audio</h2>
+
+        <label class="campo">
+          <span>Modo solicitado</span>
+          <select id="selector-modo">
+            <option value="MIC_ONLY">Solo micrófono</option>
+            <option value="SHARED_AUDIO_ONLY">Solo audio compartido</option>
+            <option value="MIC_AND_SHARED_AUDIO">Micrófono y audio compartido</option>
+          </select>
+        </label>
+        <p class="ayuda">
+          El modo <em>solicitado</em> y el <em>efectivo</em> se guardan por
+          separado. Si no se consigue todo lo pedido, la sesión se registra
+          como captura <strong>incompleta</strong>.
+        </p>
+
+        <label class="campo">
+          <span>Micrófono</span>
+          <select id="selector-microfono">
+            <option value="">Pulsa «Detectar dispositivos» para listarlos</option>
+          </select>
+        </label>
+        <button type="button" id="boton-permisos" class="boton">
+          Detectar dispositivos
+        </button>
+        <p class="ayuda">
+          Compartir una ventana de la aplicación de reuniones
+          <strong>no garantiza</strong> capturar su audio: depende del
+          navegador y del sistema. Se comprueba, no se da por hecho.
+        </p>
+        <p id="aviso-audio-remoto" class="aviso" hidden></p>
+      </section>
+
+      {#- 5. Medidores de nivel ------------------------------------------- -#}
+      <section class="bloque">
+        <h2>5 · Nivel de señal</h2>
+        <div class="medidores">
+          <div class="medidor">
+            <span class="medidor-etiqueta">Micrófono</span>
+            <canvas id="medidor-microfono" width="240" height="28"></canvas>
+          </div>
+          <div class="medidor">
+            <span class="medidor-etiqueta">Audio remoto</span>
+            <canvas id="medidor-remoto" width="240" height="28"></canvas>
+          </div>
+        </div>
+        <p class="ayuda">
+          Los medidores son separados a propósito: si no entra señal por el
+          micrófono y sí por el audio remoto, el problema no es el
+          micrófono.
+        </p>
+      </section>
+
+      {#- 6 y 7. Controles ------------------------------------------------- -#}
+      <section class="bloque">
+        <h2>6 · Controles de captura</h2>
+        <div class="controles">
+          <button type="button" id="boton-iniciar" class="boton boton-principal">
+            Iniciar
+          </button>
+          <button type="button" id="boton-pausar" class="boton" disabled>Pausar</button>
+          <button type="button" id="boton-reanudar" class="boton" disabled>Reanudar</button>
+          <button type="button" id="boton-detener" class="boton" disabled>Detener</button>
+          <button type="button" id="boton-cancelar" class="boton boton-peligro" disabled>
+            Cancelar
+          </button>
+        </div>
+        <p class="ayuda">
+          Si se cierra la pestaña con fragmentos sin enviar, se perderá ese
+          contenido. La aplicación avisa antes de cerrarse.
+        </p>
+      </section>
+
+      {#- 8. Notas manuales ------------------------------------------------ -#}
+      <section class="bloque">
+        <h2>7 · Notas manuales</h2>
+        <p class="ayuda">
+          Las notas las escribe una persona, no el modelo. Guardan la marca
+          de tiempo en la que se escribieron, que es lo que las hace útiles
+          después.
+        </p>
+        <div class="campo-nota">
+          <input type="text" id="campo-nota" placeholder="Nota con marca de tiempo…">
+          <button type="button" id="boton-nota" class="boton">Añadir nota</button>
+        </div>
+        <ul id="lista-notas" class="lista-notas"></ul>
+      </section>
+
+    </div>
+
+    {#- Columna lateral: registro y resultados ---------------------------- -#}
+    <aside class="captura-lateral">
+      <section class="bloque">
+        <h2>Registro</h2>
+        <ul id="registro" class="registro"></ul>
+      </section>
+
+      <section class="bloque">
+        <h2>Transcripción y resultados</h2>
+        <p class="ayuda">
+          La transcripción y los elementos extraídos se consultan desde la
+          <a href="/captura/sesiones/{{ sesion.id if sesion else '' }}">ficha de la sesión</a>.
+        </p>
+        <p class="ayuda">
+          Lo que salga del análisis <strong>no está validado</strong> hasta
+          que alguien lo revise. El acta distingue lo aprobado de lo
+          pendiente.
+        </p>
+      </section>
+    </aside>
+
+  </div>
+</section>
+
+<script src="{{ url_for('static', path='js/captura.js') }}"></script>
+{% endblock %}

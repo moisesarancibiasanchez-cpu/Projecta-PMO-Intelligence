@@ -1,0 +1,60 @@
+# =============================================================================
+#  Projecta PMO Intelligence — colector OpenTelemetry (HU_06)
+# =============================================================================
+#  El colector recibe trazas y métricas por OTLP y las exporta a un backend.
+#  En esta versión el backend de trazas es el propio Prometheus (vía
+#  conversión a métricas) y las trazas se descartan con el exportador de
+#  depuración, porque el proyecto no fija aún un backend de trazas: Jaeger,
+#  Tempo u otro.
+#
+#  A PERFILAR: cuando el cliente elija el backend de trazas, hay que
+#  sustituir el exportador `debug` por el definitivo. Está marcado en
+#  «A CONFIRMAR» a propósito: decidirlo ahora sería anticipar una decisión
+#  de infraestructura que corresponde al cliente.
+# =============================================================================
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+exporters:
+  # Trazas: a consola, para inspección. Pendiente de backend definitivo.
+  debug:
+    verbosity: normal
+  # Métricas: al Prometheus, que las guarda y las evalúa.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+  telemetry:
+    logs:
+      level: info

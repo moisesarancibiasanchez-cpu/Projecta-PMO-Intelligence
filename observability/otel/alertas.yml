@@ -1,0 +1,20 @@
+# =============================================================================
+#  Projecta PMO Intelligence — alertas de trazas (OTEL Collector)
+# =============================================================================
+#  A CONFIRMAR: el backend de trazas todavía no está elegido (Jaeger, Tempo
+#  u otro). Hasta que se decida, este fichero queda vacío a propósito: es
+#  preferible no tener alertas de trazas a tenerlas sobre un backend que
+#  va a cambiar.
+#
+#  Cuando se elija el backend, las reglas minimally útiles son:
+#
+#    · Traza de una operación de más de 30 segundos.
+#    · Traza con error en un servicio de integración (Jira, Azure DevOps…).
+#    · Traza de una petición cuyo `correlation_id` no aparece en la auditoría.
+#
+#  La tercera es la más valiosa: detecta operaciones quetocaron la base de
+#  datos sin dejar rastro, que es justo lo que la cadena de hash de la
+#  auditoría pretende impedir.
+# =============================================================================
+
+groups: []

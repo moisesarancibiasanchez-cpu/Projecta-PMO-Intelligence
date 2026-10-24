@@ -1,0 +1,24 @@
+{#- ---------------------------------------------------------------------------
+  _tarjeta_estado.html — tarjeta reutilizable de estado.
+  ---------------------------------------------------------------------------
+  Variables:
+    · titulo  — encabezado de la tarjeta (obligatoria en la práctica).
+    · valor   — valor principal mostrado en grande.
+    · tono    — 'ok' | 'warn' | 'error'. Cualquier otro valor cae en 'ok',
+                 que es el tono por defecto del contrato.
+    · detalle — texto secundario opcional.
+
+  El partial se puede renderizar de forma aislada: sin variables no falla,
+  muestra un estado neutro y legible.
+  --------------------------------------------------------------------------- -#}
+{%- set tono_normalizado = (tono | default('ok', true) | string | lower) -%}
+{%- set tono_final = tono_normalizado if tono_normalizado in ['ok', 'warn', 'error'] else 'ok' -%}
+{%- set titulo_final = titulo if (titulo is defined and titulo is not none and titulo != '') else 'Estado' -%}
+{%- set valor_final = valor if (valor is defined and valor is not none and valor != '') else '—' -%}
+<article class="tarjeta tarjeta--estado tarjeta--estado-{{ tono_final }}">
+  <h3 class="tarjeta__titulo">{{ titulo_final }}</h3>
+  <p class="tarjeta__valor">{{ valor_final }}</p>
+  {%- if detalle is defined and detalle is not none and detalle != '' %}
+  <p class="tarjeta__detalle">{{ detalle }}</p>
+  {%- endif %}
+</article>

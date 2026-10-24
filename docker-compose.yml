@@ -1,0 +1,412 @@
+# =============================================================================
+#  Projecta PMO Intelligence — capa de infraestructura (Docker Compose)
+#  «Decide con evidencia. Avanza con control.»
+#
+#  Contrato normativo: docs/skeleton/design.md, sección «Contrato de
+#  docker-compose» (nombres de servicio, puertos, healthchecks y volúmenes) y
+#  sección «Variables de entorno del sandbox».
+#
+#  Uso rápido:
+#      cp .env.example .env      # y ajustar los valores reales
+#      docker compose up -d --build             # stack mínimo de piloto
+#      docker compose --profile minio up -d     # stack completo (con MinIO)
+#
+#  Perfiles:
+#      (sin perfil)  → api + worker + beat + postgres + redis   ← piloto
+#      minio         → añade minio + minio-init
+#      observabilidad → añade prometheus + otel-collector + grafana
+#
+#  Todas las variables de entorno que el compose interpola están declaradas en
+#  .env.example (ver «5. Variables de entorno» más abajo).
+#  NOTA: en el entorno donde se escribió este esqueleto no existe el binario
+#  `docker`; el compose se valida por análisis estático. Ver
+#  docs/skeleton/deliverable-infra.md.
+# =============================================================================
+name: projecta-pmo-intelligence
+
+# -----------------------------------------------------------------------------
+#  Configuración compartida por `api`, `worker` y `beat`.
+#  Se declara una vez (extensión `x-`) y se reutiliza con el alias YAML.
+#
+#  Las URLs internas del stack (postgres, redis, minio) están fijadas aquí a
+#  propósito: dentro de la red de Compose los servicios se resuelven por nombre.
+#  Los valores de .env.example apuntan a `localhost` y son los válidos para una
+#  ejecución nativa fuera de Docker.
+# -----------------------------------------------------------------------------
+x-app-env: &app-env
+  APP_NAME: "${APP_NAME}"
+  APP_ENV: "${APP_ENV}"
+  DEBUG: "${DEBUG}"
+  # Sin valor por defecto: si falta, la aplicación falla al arrancar nombrando
+  # la variable ausente (regla 1 del «Contrato de configuración»).
+  SECRET_KEY: "${SECRET_KEY}"
+  # Reconstruida a partir de POSTGRES_PASSWORD / POSTGRES_DB para que la
+  # contraseña de PostgreSQL viva en un único sitio: el archivo .env.
+  DATABASE_URL: "postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+  REDIS_URL: "redis://redis:6379/0"
+  CELERY_BROKER_URL: "redis://redis:6379/1"
+  CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+  MINIO_ENDPOINT: "${MINIO_ENDPOINT}"
+  MINIO_ACCESS_KEY: "${MINIO_ACCESS_KEY}"
+  MINIO_SECRET_KEY: "${MINIO_SECRET_KEY}"
+  MINIO_BUCKET: "${MINIO_BUCKET}"
+  JWT_ALGORITHM: "${JWT_ALGORITHM}"
+  JWT_EXPIRATION_MINUTES: "${JWT_EXPIRATION_MINUTES}"
+  CORS_ORIGINS: "${CORS_ORIGINS}"
+  LOG_LEVEL: "${LOG_LEVEL}"
+  # Identidad corporativa (HU_04). Sin estas cuatro variables el flujo OIDC
+  # no está disponible y solo queda el inicio de sesión local, que la
+  # aplicación rechaza en producción.
+  OIDC_ISSUER: "${OIDC_ISSUER}"
+  OIDC_CLIENT_ID: "${OIDC_CLIENT_ID}"
+  OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET}"
+  OIDC_REDIRECT_URI: "${OIDC_REDIRECT_URI}"
+  OIDC_SCOPES: "${OIDC_SCOPES}"
+  OIDC_DOMINIO_ORGANIZACION: "${OIDC_DOMINIO_ORGANIZACION}"
+  # Trazas (HU_06). Vacío = la aplicación arranca sin trazas, pero sigue
+  # exponiendo métricas.
+  OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT}"
+  # Errores no controlados. Vacío = solo se registran en el log.
+  SENTRY_DSN: "${SENTRY_DSN}"
+
+services:
+  # ---------------------------------------------------------------------------
+  #  api — API HTTP de Projecta PMO Intelligence (FastAPI + Uvicorn)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: projecta-pmo-intelligence:local
+    command:
+      - uvicorn
+      - app.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment: *app-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  worker — consumidor de las colas Celery (ingesta, documentos, ia,
+  #  integraciones, reportes, mantenimiento)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: projecta-pmo-intelligence:local
+    command:
+      - celery
+      - -A
+      - app.core.celery_app:celery_app
+      - worker
+      - --loglevel=INFO
+      - --concurrency=4
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Sonda del contrato; el `grep -q pong` la hace útil: `celery inspect
+      # ping` sale con código 0 aunque ningún worker responda.
+      test: ["CMD-SHELL", "celery -A app.core.celery_app:celery_app inspect ping --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  beat — planificador Celery (crontab de mantenimiento cada 5 minutos)
+  # ---------------------------------------------------------------------------
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: projecta-pmo-intelligence:local
+    command:
+      - celery
+      - -A
+      - app.core.celery_app:celery_app
+      - beat
+      - --loglevel=INFO
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # El contrato fija la sonda Celery para `worker` y `beat`. En `beat` se
+      # añade la sonda HTTP `/health` —no puede ser `localhost`: en el
+      # contenedor de beat no hay servidor HTTP, sino el servicio `api`— para
+      # que el planificador no se marque como caído cuando el worker aún no
+      # responde. Basta con que una de las dos sondas responda.
+      test: ["CMD-SHELL", "celery -A app.core.celery_app:celery_app inspect ping --timeout 5 | grep -q pong || curl -f http://api:8000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  postgres — PostgreSQL 16 con pgvector
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      # El usuario está fijado a `postgres` porque el healthcheck lo referencia.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # La extensión `vector` (pgvector) se habilita en el init del contenedor:
+    # el entrypoint oficial ejecuta los scripts de /docker-entrypoint-initdb.d
+    # en la primera inicialización del volumen `pgdata`.
+    configs:
+      - source: pgvector_init
+        target: /docker-entrypoint-initdb.d/10-ext-vector.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  redis — caché, locks y broker/resultados de Celery
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  minio — almacenamiento de objetos (evidencia) · perfil opcional `minio`
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    profiles:
+      - minio
+    command:
+      - server
+      - /data
+      - --console-address
+      - ":9001"
+    environment:
+      # Credenciales raíz del servidor. Deben coincidir con MINIO_ACCESS_KEY /
+      # MINIO_SECRET_KEY: la aplicación autentica contra el servidor con ese
+      # mismo par.
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || mc ready http://localhost:9000"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  minio-init — crea el bucket de evidencia (idempotente) · perfil `minio`
+  # ---------------------------------------------------------------------------
+  minio-init:
+    image: minio/mc:latest
+    profiles:
+      - minio
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+      MINIO_BUCKET: "${MINIO_BUCKET}"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "local/$${MINIO_BUCKET}"
+        mc anonymous set none "local/$${MINIO_BUCKET}" || true
+        mc ls "local/$${MINIO_BUCKET}"
+    healthcheck:
+      test: ["CMD-SHELL", 'mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" >/dev/null 2>&1 && mc ls "local/$${MINIO_BUCKET}" >/dev/null 2>&1']
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: "no"
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  prometheus — scrapeo de métricas · perfil `observabilidad`
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles:
+      - observabilidad
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/reglas.yml:/etc/prometheus/reglas.yml:ro
+      - prometheusdata:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  otel-collector — recibe las trazas y las exporta · perfil `observabilidad`
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    profiles:
+      - observabilidad
+    command:
+      - --config=/etc/otel/config.yml
+    ports:
+      - "4318:4318"   # HTTP OTLP: trazas y métricas
+    volumes:
+      - ./observability/otel/config.yml:/etc/otel/config.yml:ro
+      - ./observability/otel/alertas.yml:/etc/otel/alertas.yml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:13133/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+  # ---------------------------------------------------------------------------
+  #  grafana — paneles y alertas · perfil `observabilidad`
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.3.1
+    profiles:
+      - observabilidad
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD}"
+      # La fuente de datos se aprovisiona: el panel se carga al arrancar.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/projecta.json
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - projecta
+
+# -----------------------------------------------------------------------------
+#  Volúmenes nombrados (datos persistentes)
+# -----------------------------------------------------------------------------
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  prometheusdata:
+  grafanadata:
+
+# -----------------------------------------------------------------------------
+#  Red dedicada del stack
+# -----------------------------------------------------------------------------
+networks:
+  projecta:
+    driver: bridge
+
+# -----------------------------------------------------------------------------
+#  Configuración: script de init de PostgreSQL con la extensión pgvector.
+#  `content` requiere Docker Compose v2.23.1 o superior.
+# -----------------------------------------------------------------------------
+configs:
+  pgvector_init:
+    content: |
+      -- Projecta PMO Intelligence
+      -- Habilita la extensión `vector` (pgvector) en la base de datos.
+      -- Lo ejecuta el entrypoint oficial de PostgreSQL la primera vez que se
+      -- inicializa el volumen `pgdata`.
+      CREATE EXTENSION IF NOT EXISTS vector;

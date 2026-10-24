@@ -1,0 +1,35 @@
+# =============================================================================
+#  Projecta PMO Intelligence — configuración de Prometheus (HU_06)
+# =============================================================================
+#  El scrapeo es de la propia API, no de un exportador aparte: la aplicación
+#  expone `/metrics` con el formato de Prometheus. Así no hay un componente
+#  más que mantener, y las métricas que se ven en el panel son exactamente las
+#  que emite el código.
+#
+#  Nota sobre el nombre del servicio: dentro de la red de Compose el servicio
+#  se llama `api`. Fuera de Docker, el objetivo sería `localhost:8000`.
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    proyecto: projecta-pmo-intelligence
+    stack: projecta
+
+rule_files:
+  - /etc/prometheus/reglas.yml
+
+scrape_configs:
+  # La propia API de Projecta PMO Intelligence.
+  - job_name: projecta-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api:8000"]
+        labels:
+          componente: api
+
+  # El propio Prometheus, para las métricas internas del servidor de métricas.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

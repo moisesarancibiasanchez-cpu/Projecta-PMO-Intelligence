@@ -1,0 +1,121 @@
+{#- ---------------------------------------------------------------------------
+  base.html — plantilla base de Projecta PMO Intelligence.
+  ---------------------------------------------------------------------------
+  Contrato compartido (docs/skeleton/design.md, sección «Contrato de plantillas»):
+    · Plantilla base: base.html
+    · Bloques:       {% block title %} (opcional) y {% block content %}
+    · Variables comunes: app_name, version, environment
+    · Registro: Jinja2Templates(directory=…, autoescape=True)
+
+  La marca se escribe SIEMPRE completa: «Projecta PMO Intelligence».
+  Si el contexto delivería un `app_name` incompleto, se ignora a propósito y
+  se usa la constante `marca` de más abajo.
+  --------------------------------------------------------------------------- -#}
+{%- set marca = "Projecta PMO Intelligence" -%}
+{%- set nombre_app = app_name if (app_name is defined and app_name and "PMO Intelligence" in app_name) else marca -%}
+{%- set version_app = version if (version is defined and version) else "0.0.0" -%}
+{%- set entorno_app = environment if (environment is defined and environment) else "desconocido" -%}
+{%- macro marcar_seguro(texto) -%}
+  {#- -------------------------------------------------------------------------
+    Macro `marcar_seguro` — filtro propio y documentado de marcado seguro.
+    ---------------------------------------------------------------------------
+    Sustituye al filtro `|safe`, que está PROHIBIDO por el contrato cuando el
+    contenido puede venir de un modelo de IA.
+
+    1. ESCAPA PRIMERO cada fragmento del texto con el filtro `e` (equivalente
+       a autoescape para .html): `<`, `>`, `&`, `"` y `'` pasan a entidades.
+    2. Solo DESPUÉS de escapar se abren y se cierran un conjunto mínimo y
+       cerrado de marcadores: `**negrita**`, `__cursiva__` y `` `código` ``.
+
+    Como el escapado ocurre antes de la transformación, el texto original
+    jamás puede aportar etiquetas HTML propias: es imposible que llegue HTML
+    ejecutable al navegador. Es el único mecanismo admitido para renderizar
+    texto generado por IA con énfasis.
+    --------------------------------------------------------------------------- -#}
+  {%- set crudo = texto | string -%}
+  {%- for parte in crudo.split("**") -%}
+    {%- if loop.index0 is odd %}<strong>{% endif -%}
+    {%- for subparte in parte.split("__") -%}
+      {%- if loop.index0 is odd %}<em>{% endif -%}
+      {%- for fragmento in subparte.split("`") -%}
+        {%- if loop.index0 is odd %}<code>{% endif -%}
+        {{- fragmento | e -}}
+        {%- if loop.index0 is odd %}</code>{% endif -%}
+      {%- endfor -%}
+    {%- if loop.index0 is odd %}</em>{% endif -%}
+    {%- endfor -%}
+    {%- if loop.index0 is odd %}</strong>{% endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+{%- macro tono_estado(estado, por_defecto='warn') -%}
+  {#- -------------------------------------------------------------------------
+    `tono_estado(estado, por_defecto)` devuelve 'ok' | 'warn' | 'error'.
+    Acepta un booleano (True → 'ok', False → 'error'), una cadena ('ok',
+    'warn', 'error', 'degradado', 'caido'…) o un diccionario con las claves
+    'estado', 'tono' u 'ok'. Si no reconoce el valor devuelve `por_defecto`.
+    --------------------------------------------------------------------------- -#}
+  {%- if estado is none -%}{{ por_defecto }}
+  {%- elif estado is boolean -%}{{ 'ok' if estado else 'error' }}
+  {%- elif estado is mapping -%}
+    {%- set interno = estado.get('estado') -%}
+    {%- if interno is none -%}{%- set interno = estado.get('tono') -%}{%- endif -%}
+    {%- if interno is none -%}{%- set interno = estado.get('ok') -%}{%- endif -%}
+    {%- if interno is none -%}{{ por_defecto }}{%- else -%}{{ tono_estado(interno, por_defecto) }}{%- endif -%}
+  {%- elif estado is string -%}
+    {%- set clave = estado | lower -%}
+    {%- if clave in ['ok', 'operativo', 'activo', 'up', 'healthy', 'sano', 'verde'] -%}ok
+    {%- elif clave in ['warn', 'warning', 'degradado', 'parcial', 'alerta', 'amarillo'] -%}warn
+    {%- elif clave in ['error', 'ko', 'caido', 'down', 'fallo', 'fallido', 'rojo'] -%}error
+    {%- else -%}{{ por_defecto }}{%- endif -%}
+  {%- else -%}{{ por_defecto }}{%- endif -%}
+{%- endmacro -%}
+{%- macro valor_estado(estado) -%}
+  {#- -------------------------------------------------------------------------
+    `valor_estado(estado)` devuelve el texto visible del estado: 'Operativo',
+    'Degradado', 'Con errores', 'Sin dato' o el texto recibido en mayúscula
+    inicial cuando no se reconoce.
+    --------------------------------------------------------------------------- -#}
+  {%- if estado is none -%}Sin dato
+  {%- elif estado is boolean -%}{{ 'Operativo' if estado else 'Sin respuesta' }}
+  {%- elif estado is mapping -%}
+    {%- set interno = estado.get('estado') -%}
+    {%- if interno is none -%}{%- set interno = estado.get('tono') -%}{%- endif -%}
+    {%- if interno is none -%}{%- set interno = estado.get('ok') -%}{%- endif -%}
+    {%- if interno is none -%}Sin dato{%- else -%}{{ valor_estado(interno) }}{%- endif -%}
+  {%- elif estado is string -%}
+    {%- set clave = estado | lower -%}
+    {%- if clave in ['ok', 'operativo', 'activo', 'up', 'healthy', 'sano', 'verde'] -%}Operativo
+    {%- elif clave in ['warn', 'warning', 'degradado', 'parcial', 'alerta', 'amarillo'] -%}Degradado
+    {%- elif clave in ['error', 'ko', 'caido', 'down', 'fallo', 'fallido', 'rojo'] -%}Con errores
+    {%- else -%}{{ estado | title }}{%- endif -%}
+  {%- else -%}Sin dato{%- endif -%}
+{%- endmacro -%}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="La capa inteligente para gobernar proyectos, portafolios y decisiones.">
+  <meta name="application-name" content="{{ nombre_app }}">
+  <title>{% block title %}{{ nombre_app }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="app">
+  <a class="enlace-omisible" href="#contenido-principal">Saltar al contenido principal</a>
+  {% include "partials/_cabecera.html" %}
+  <main class="app__principal" id="contenido-principal">
+    <div class="contenedor">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+  <footer class="app__pie">
+    <div class="contenedor">
+      <p class="pie__linea pie__linea--marca">
+        <span class="pie__nombre">{{ nombre_app }}</span>
+        <span class="pie__version">versión {{ version_app }}</span>
+      </p>
+      <p class="pie__linea pie__lema">Decide con evidencia. Avanza con control.</p>
+    </div>
+  </footer>
+</body>
+</html>

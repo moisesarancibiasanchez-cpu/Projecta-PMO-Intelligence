@@ -1,0 +1,22 @@
+{#- ---------------------------------------------------------------------------
+  _estado_vacio.html — componente reutilizable de estado vacío.
+  ---------------------------------------------------------------------------
+  Variables:
+    · variable — qué falta (la entidad): p. ej. «proyectos activos».
+    · slot    — contenido a mostrar en el hueco (mensaje o llamada a la acción).
+
+  El `slot` se imprime ESCAPADO: el texto puede venir de un modelo de IA y
+  nunca debe interpretarse como HTML. Si el texto necesita énfasis, el
+  llamante debe usar la macro `marcar_seguro` de base.html, que escapa
+  primero y solo después aplica un conjunto cerrado de marcas.
+
+  El partial se puede renderizar de forma aislada: sin variables no falla.
+  --------------------------------------------------------------------------- -#}
+{%- set entidad = variable if (variable is defined and variable is not none and variable != '') else 'datos' -%}
+{%- set contenido = slot if (slot is defined and slot is not none) else '' -%}
+<div class="estado-vacio" role="status">
+  <p class="estado-vacio__titulo">No hay {{ entidad }} por mostrar todavía</p>
+  {%- if contenido %}
+  <p class="estado-vacio__slot">{{ contenido }}</p>
+  {%- endif %}
+</div>

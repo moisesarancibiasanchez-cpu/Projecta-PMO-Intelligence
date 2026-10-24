@@ -1,0 +1,112 @@
+{#- ---------------------------------------------------------------------------
+  health.html — página de salud del esqueleto de Projecta PMO Intelligence.
+  ---------------------------------------------------------------------------
+  Variables admitidas (todas opcionales):
+    · app_name, version, environment — variables comunes del contrato.
+    · status / estado — estado global ('ok' | 'degraded').
+    · checks — detalle por dependencia. Admite el shape del contrato
+      {"database": {"ok": true, "latency_ms": 3.2, "error": "…"}} o una
+      lista de {"nombre": …, "ok": …, "latency_ms": …, "error": …}.
+    · resumen — texto breve (puede venir de un modelo de IA). Se imprime con
+      la macro `marcar_seguro`, que escapa antes de aplicar marcas.
+  --------------------------------------------------------------------------- -#}
+{% extends "base.html" %}
+{%- block title %}{{ nombre_app }} — Estado de salud{% endblock %}
+{% block content %}
+<section class="portada portada--compacta">
+  <p class="portada__antetitulo">Diagnóstico del esqueleto</p>
+  <h1 class="portada__titulo">Estado de salud</h1>
+  <p class="portada__bajada">Detalle por dependencia de {{ nombre_app }}.</p>
+</section>
+{%- set estado_global = (status if (status is defined and status)
+   else (estado if (estado is defined and estado) else none)) %}
+<section class="bloque">
+  <div class="tarjetas tarjetas--compactas">
+    {%- with titulo = "Estado global", valor = valor_estado(estado_global), tono = tono_estado(estado_global, 'warn') %}
+    {%- include "partials/_tarjeta_estado.html" %}
+    {%- endwith %}
+  </div>
+</section>
+{%- if resumen is defined and resumen %}
+<section class="bloque">
+  <h2 class="bloque__titulo">Resumen</h2>
+  <p class="bloque__parrafo">{{ marcar_seguro(resumen) }}</p>
+</section>
+{%- endif %}
+{%- set comprobaciones = (checks if (checks is defined and checks)
+   else (dependencias if (dependencias is defined and dependencias) else none)) -%}
+{%- set etiquetas = {
+  'database': 'Base de datos',
+  'redis': 'Redis',
+  'storage': 'Almacenamiento de evidencia',
+  'celery': 'Colas de trabajo',
+  'minio': 'Almacenamiento de objetos',
+  'object_storage': 'Almacenamiento de objetos'
+} -%}
+{%- set ns_comprobaciones = namespace(filas=[]) -%}
+{%- if comprobaciones is mapping %}
+  {%- for nombre_comprobacion, valor_comprobacion in comprobaciones.items() %}
+    {%- set info = valor_comprobacion if (valor_comprobacion is mapping) else {} %}
+    {%- set correcto = info.get('ok') if (info.get('ok') is not none) else (valor_comprobacion if (valor_comprobacion is boolean) else none) %}
+    {%- set latencia = info.get('latency_ms') if (info.get('latency_ms') is not none) else none %}
+    {%- set error = info.get('error') if (info.get('error') is not none) else none %}
+    {%- set ns_comprobaciones.filas = ns_comprobaciones.filas + [{"nombre": nombre_comprobacion, "ok": correcto, "latencia": latencia, "error": error}] %}
+  {%- endfor %}
+{%- elif comprobaciones %}
+  {%- for elemento in comprobaciones %}
+    {%- set info = elemento if (elemento is mapping) else {} %}
+    {%- set nombre_comprobacion = (info.get('nombre') if info.get('nombre') is not none else (info.get('name') if info.get('name') is not none else 'Dependencia')) %}
+    {%- set correcto = info.get('ok') if (info.get('ok') is not none) else none %}
+    {%- set latencia = info.get('latency_ms') if (info.get('latency_ms') is not none) else none %}
+    {%- set error = info.get('error') if (info.get('error') is not none) else none %}
+    {%- set ns_comprobaciones.filas = ns_comprobaciones.filas + [{"nombre": nombre_comprobacion, "ok": correcto, "latencia": latencia, "error": error}] %}
+  {%- endfor %}
+{%- endif %}
+{%- if ns_comprobaciones.filas %}
+<section class="bloque">
+  <h2 class="bloque__titulo">Dependencias</h2>
+  <div class="tarjetas">
+    {%- for fila in ns_comprobaciones.filas %}
+    {%- set tono = 'ok' if fila.ok is sameas true else ('error' if fila.ok is sameas false else 'warn') %}
+    {%- set valor = 'Operativo' if fila.ok is sameas true else ('Sin respuesta' if fila.ok is sameas false else 'Sin comprobación') %}
+    {%- set ns_detalle = namespace(partes=[]) %}
+    {%- if fila.latencia is not none %}{% set ns_detalle.partes = ns_detalle.partes + [(fila.latencia ~ ' ms')] %}{% endif %}
+    {%- if fila.error %}{% set ns_detalle.partes = ns_detalle.partes + [fila.error] %}{% endif %}
+    {%- with titulo = etiquetas.get(fila.nombre, fila.nombre | title), valor = valor, tono = tono, detalle = ns_detalle.partes | join(' · ') %}
+    {%- include "partials/_tarjeta_estado.html" %}
+    {%- endwith %}
+    {%- endfor %}
+  </div>
+  <div class="tabla-contenedor">
+    <table class="tabla">
+      <caption class="tabla__leyenda">Detalle por dependencia</caption>
+      <thead>
+        <tr>
+          <th scope="col">Dependencia</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Latencia</th>
+          <th scope="col">Mensaje</th>
+        </tr>
+      </thead>
+      <tbody>
+        {%- for fila in ns_comprobaciones.filas %}
+        <tr>
+          <td class="tabla__servicio" data-etiqueta="Dependencia">{{ etiquetas.get(fila.nombre, fila.nombre | title) }}</td>
+          <td data-etiqueta="Estado"><span class="badge badge--{{ 'ok' if fila.ok is sameas true else ('error' if fila.ok is sameas false else 'warn') }}">{{ 'Operativo' if fila.ok is sameas true else ('Sin respuesta' if fila.ok is sameas false else 'Sin comprobación') }}</span></td>
+          <td data-etiqueta="Latencia">{% if fila.latencia is not none %}{{ fila.latencia }} ms{% else %}—{% endif %}</td>
+          <td data-etiqueta="Mensaje">{{ fila.error if fila.error else '—' }}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{%- else %}
+<section class="bloque">
+  <h2 class="bloque__titulo">Dependencias</h2>
+  {%- with variable = "comprobaciones de dependencias", slot = "Todavía no hay comprobaciones: consulta /ready para obtener el detalle en JSON." %}
+  {%- include "partials/_estado_vacio.html" %}
+  {%- endwith %}
+</section>
+{%- endif %}
+{% endblock %}

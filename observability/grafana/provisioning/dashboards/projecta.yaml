@@ -1,0 +1,21 @@
+# =============================================================================
+#  Projecta PMO Intelligence — aprovisionamiento de Grafana
+# =============================================================================
+#  Fuente de datos y panel por defecto. Se montan en modo solo lectura desde
+#  el compose, así que Grafana los carga al arrancar y no hace falta
+#  configurarlos a mano.
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: projecta
+    orgId: 1
+    folder: "Projecta PMO Intelligence"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -1,0 +1,62 @@
+# =============================================================================
+#  Projecta PMO Intelligence — dependencias de Python.
+#  «Decide con evidencia. Avanza con control.»
+#
+#  Versiones fijadas por el TO-BE. No se suben de forma silenciosa: cualquier
+#  cambio de versión es una decisión explícita y revisada.
+#  Regenerar (con revisión manual obligatoria):
+#      pip freeze > requirements.txt
+# =============================================================================
+
+# --- Núcleo de la API ------------------------------------------------------
+fastapi==0.115.5
+uvicorn==0.32.1
+jinja2==3.1.4
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# --- Persistencia ----------------------------------------------------------
+sqlalchemy==2.0.36
+alembic==1.14.0
+# Driver asíncrono de producción del contrato: `postgresql+asyncpg`.
+asyncpg==0.30.0
+# Driver síncrono para Alembic (traducción `postgresql+psycopg`).
+psycopg==3.2.3
+# Requisito del motor asíncrono de SQLAlchemy 2.
+greenlet==3.5.6
+
+# --- Colas asíncronas ------------------------------------------------------
+celery==5.4.0
+redis==5.2.1
+
+# --- Formularios y subidas de archivos (cola `ingesta`) --------------------
+python-multipart==0.0.17
+
+# --- Épica 0: identidad, sesión y seguridad -------------------------------
+# HMAC-SHA256 para firmar los tokens de sesión (JWT) y los refresh tokens.
+pyjwt==2.15.1
+# Hash de contraseñas. Trunca a 72 bytes, que es lo que admite el algoritmo.
+bcrypt==5.0.0
+
+# --- Épica 0: almacenamiento de objetos (HU_08) ---------------------------
+# Cliente de la API de MinIO, compatible con S3.
+minio==7.2.20
+
+# --- Épica 0: observabilidad (HU_06) --------------------------------------
+# Métricas en formato Prometheus.
+prometheus-client==0.26.0
+# Trazas distribuidas. El SDK y la instrumentación de FastAPI.
+opentelemetry-sdk==1.45.1
+opentelemetry-instrumentation-fastapi==0.66b1
+
+# --- Edge Connector: firma de los eventos del sensor ------------------------
+# Ed25519 para firmar y verificar los eventos del Edge Connector. En la PoC
+# sustituye a mTLS, que no se puede montar en el entorno de validación.
+cryptography==44.0.0
+
+# --- Pruebas ---------------------------------------------------------------
+httpx==0.28.0
+pytest==8.3.4
+pytest-asyncio==0.25.0
+# Driver SQLite para el modo de desarrollo y las pruebas aisladas.
+aiosqlite==0.20.0

@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "projecta-pmo-intelligence"
+version = "0.1.0"
+description = "Projecta PMO Intelligence — la capa inteligente para gobernar proyectos, portafolios y decisiones."
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "Projecta PMO Intelligence" }]
+keywords = ["pmo", "proyectos", "portafolios", "fastapi", "celery"]
+classifiers = [
+    "Framework :: FastAPI",
+    "Programming Language :: Python :: 3.11",
+    "Private :: Do Not Upload",
+]
+
+dependencies = [
+    "fastapi==0.115.5",
+    "uvicorn[standard]==0.32.1",
+    "jinja2==3.1.4",
+    "pydantic==2.10.3",
+    "pydantic-settings==2.6.1",
+    "python-dotenv==1.2.4",
+    "sqlalchemy==2.0.36",
+    "alembic==1.14.0",
+    "greenlet==3.5.6",
+    "asyncpg==0.30.0",
+    "aiosqlite==0.20.0",
+    "psycopg[binary]==3.2.3",
+    "redis==5.2.1",
+    "celery==5.4.0",
+    "httpx==0.28.0",
+    "pyjwt==2.15.1",
+    "bcrypt==5.0.0",
+    "minio==7.2.20",
+    "prometheus-client==0.26.0",
+    "opentelemetry-sdk==1.45.1",
+    "opentelemetry-instrumentation-fastapi==0.66b1",
+    "cryptography==44.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.0",
+    "httpx==0.28.0",
+]
+ocr = [
+    "weasyprint",
+    "tesserocr",
+]
+
+[project.urls]
+Documentacion = "https://projecta.local/docs"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*", "alembic*", "scripts*", "deploy*", "docs*"]
+
+[tool.setuptools.package-data]
+app = ["templates/**/*.html", "static/**/*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["B008"]

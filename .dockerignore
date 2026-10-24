@@ -1,0 +1,55 @@
+# =============================================================================
+#  Contexto de build de la imagen de Projecta PMO Intelligence.
+#  Todo lo que se excluya aquí NO entra en la imagen. Regla de oro: al
+#  contexto solo va lo que la aplicación necesita en runtime.
+# =============================================================================
+
+# --- Secretos: nunca dentro de la imagen -----------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Control de versiones y metadatos del repo -----------------------------
+.git
+.gitignore
+.github
+.gitattributes
+.mavis
+
+# --- Entornos virtuales y cachés ------------------------------------------
+.venv
+venv
+env
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# --- Datos locales y artefactos de operación -------------------------------
+.data
+backups/
+*.log
+*.sql
+*.sql.gz
+
+# --- Editores y sistema operativo -------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Node (no aplica al stack, pero evita arrastrar artefactos) -------------
+node_modules/

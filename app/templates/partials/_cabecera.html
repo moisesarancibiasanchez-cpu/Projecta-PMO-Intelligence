@@ -1,0 +1,43 @@
+{#- ---------------------------------------------------------------------------
+  _cabecera.html — cabecera reutilizable: marca, navegación y entorno.
+  ---------------------------------------------------------------------------
+  Variables admitidas (todas opcionales):
+    · app_name    — nombre visible de la aplicación.
+    · environment — entorno de ejecución (development, staging, production).
+    · navegacion — lista de elementos {titulo, href}; si no llega, se usa la
+                    navegación por defecto del esqueleto.
+
+  El partial se puede renderizar de forma aislada: no depende de variables
+  obligatorias y nunca lanza error por variables ausentes.
+  --------------------------------------------------------------------------- -#}
+{%- set marca = "Projecta PMO Intelligence" -%}
+{%- set nombre_app = app_name if (app_name is defined and app_name and "PMO Intelligence" in app_name) else marca -%}
+{%- set entorno = environment if (environment is defined and environment) else "desconocido" -%}
+{%- set navegacion_por_defecto = [
+  {"titulo": "Inicio", "href": "/"},
+  {"titulo": "Salud", "href": "/salud"},
+  {"titulo": "Documentación de la API", "href": "/docs"}
+] -%}
+{%- set enlaces = navegacion if (navegacion is defined and navegacion) else navegacion_por_defecto -%}
+<header class="cabecera">
+  <div class="contenedor cabecera__fila">
+    <div class="cabecera__marca">
+      <a class="cabecera__enlace" href="/">
+        <span class="cabecera__nombre">{{ nombre_app }}</span>
+        <span class="cabecera__bajada">La capa inteligente para gobernar proyectos, portafolios y decisiones.</span>
+      </a>
+    </div>
+    <nav class="cabecera__nav" aria-label="Navegación principal">
+      <ul class="nav">
+        {%- for enlace in enlaces %}
+        <li class="nav__item">
+          <a class="nav__enlace" href="{{ enlace.href if (enlace.href is defined and enlace.href) else '/' }}">{{ enlace.titulo if (enlace.titulo is defined and enlace.titulo) else 'Sección' }}</a>
+        </li>
+        {%- endfor %}
+      </ul>
+    </nav>
+    <p class="cabecera__entorno">
+      <span class="badge badge--neutro">entorno: {{ entorno }}</span>
+    </p>
+  </div>
+</header>

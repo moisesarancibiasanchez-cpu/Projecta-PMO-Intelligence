@@ -1,0 +1,19 @@
+# =============================================================================
+#  Projecta PMO Intelligence — aprovisionamiento de fuentes de datos
+# =============================================================================
+#  La fuente de datos apunta al Prometheus del propio stack. La URL es
+#  interna de la red de Compose porque Grafana y Prometheus están en la
+#  misma red.
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: 15s

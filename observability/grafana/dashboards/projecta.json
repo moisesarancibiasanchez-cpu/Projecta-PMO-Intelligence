@@ -1,0 +1,267 @@
+{
+  "uid": "projecta-pmo-intelligence",
+  "title": "Projecta PMO Intelligence —panorama operativo",
+  "description": "Disponibilidad, latencia, colas y dependencias de Projecta PMO Intelligence. Cubre la Épica 0 (HU_06).",
+  "tags": ["projecta", "pmo-intelligence"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "ruta",
+        "label": "Ruta de la API",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query": "label_values(projecta_peticiones_total, ruta)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Disponibilidad de la API",
+      "description": "1 si el objetivo se está raspando; 0 si no responde.",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "max(up{job=\"projecta-api\"})", "legendFormat": "api", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "CAÍDA", "color": "red" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value" }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Base de datos",
+      "description": "La base de datos es una dependencia crítica: si cae, `/ready` devuelve 503.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "max(projecta_base_de_datos_disponible)", "legendFormat": "bd", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "CAÍDA", "color": "red" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value" }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Almacenamiento de objetos",
+      "description": "El almacenamiento NO es crítico: la API sigue dando servicio aunque caiga, pero no se puede subir evidencia.",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "max(projecta_almacenamiento_disponible)", "legendFormat": "almacenamiento", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "NO DISPONIBLE", "color": "orange" } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "orange", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value" }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Errores internos por minuto",
+      "description": "Respuestas 5xx. El objetivo es 0.",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "sum(rate(projecta_errores_total[5m])) * 60", "legendFormat": "5xx/min", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value" }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Peticiones por segundo y por código de estado",
+      "description": "El tráfico de la API, separado por resultado. Un crecimiento sostenido de 4xx suele indicar un cambio de contrato o un cliente roto.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (estado) (rate(projecta_peticiones_total{ruta=~\"$ruta\"}[5m]))",
+          "legendFormat": "{{estado}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Latencia por percentil",
+      "description": "Percentiles 50, 95 y 99 de la duración de las peticiones. El objetivo de lectura del TO-BE es 2 segundos en el percentil 95.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(projecta_api_peticiones_latencia_segundos_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(projecta_api_peticiones_latencia_segundos_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(projecta_api_peticiones_latencia_segundos_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Tareas de Celery por resultado",
+      "description": "Ejecuciones por cola y resultado. Un crecimiento de `error` sostenido lleva a la cola muerta.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (cola, resultado) (rate(projecta_tareas_ejecutadas_total[5m]))",
+          "legendFormat": "{{cola}} · {{resultado}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Duración de las tareas por cola",
+      "description": "Duración de las tareas. Una tarea que se acerca al límite de tiempo es la que va a morir en la cola muerta.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(projecta_tareas_duracion_segundos_bucket[5m])) by (le, cola))",
+          "legendFormat": "{{cola}} p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Eventos de auditoría por tipo",
+      "description": "El registro de auditoría es append-only. Un descenso brusco de eventos indica que alguien dejó de operar, no que la actividad bajó.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (tipo) (rate(projecta_auditoria_eventos_total[15m]))",
+          "legendFormat": "{{tipo}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Rechazos por permisos",
+      "description": "Operaciones rechazadas por RBAC. Un volumen alto y sostenido suele indicar que los roles están mal asignados, no un intento de ataque.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "sum by (regla) (rate(projecta_auditoria_rechazos_total[15m]))",
+          "legendFormat": "{{regla}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineWidth": 2 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+# =============================================================================
+#  Projecta PMO Intelligence — reglas de alerta (HU_06)
+# =============================================================================
+#  Cada regla tiene un umbral **justificado**, no un número arbitrario:
+#  el comentario explica de dónde sale el valor y qué se espera que pase
+#  cuando se dispare. Una alerta sin criterio de acción es ruido, y en un
+#  entorno regulado el ruido se paga caro.
+#
+#  Los umbrales marcados con «A CONFIRMAR» son los que hay que revisar con
+#  el cliente antes de pasarlos a producción: dependen de los SLAs que
+#  todavía no están firmados.
+# =============================================================================
+
+groups:
+  - name: projecta-disponibilidad
+    interval: 30s
+    rules:
+      - alert: ProjectaApiCaida
+        expr: up{job="projecta-api"} == 0
+        for: 2m
+        labels:
+          severidad: critica
+        annotations:
+          resumen: "La API de Projecta PMO Intelligence no responde"
+          descripcion: >
+            Prometheus no consigue raspar la API desde hace 2 minutos. Si el
+            servicio no se ha desplegado a propósito, hay que mirar el
+            registro del contenedor `api` antes de reiniciar: un reinicio
+            destroys la información de diagnóstico.
+          accion: "Revisar el registro del contenedor `api` y el estado de PostgreSQL y Redis."
+
+      - alert: ProjectaErroresInternos
+        expr: rate(projecta_errores_total{ruta=~"/.*"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severidad: alta
+        annotations:
+          resumen: "Más de 0,05 errores internos por segundo en la API"
+          descripcion: >
+            La tasa de respuestas 5xx supera 3 por minuto durante 5 minutos.
+            Es el umbral que separa un error puntual de un fallo sostenido.
+          accion: "Correlacionar con los registros usando el `correlation_id` de la respuesta."
+
+  - name: projecta-latencia
+    interval: 30s
+    rules:
+      - alert: ProjectaLatenciaAlta
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(projecta_api_peticiones_latencia_segundos_bucket[5m])) by (le, ruta)
+          ) > 2
+        for: 10m
+        labels:
+          severidad: media
+        annotations:
+          resumen: "El percentil 95 de latencia de la API supera los 2 segundos"
+          descripcion: >
+            El umbral de 2 segundos es el que fija el TO-BE como objetivo de
+            respuesta para las operaciones de lectura. Por encima de eso, la
+            interfaz se nota lenta.
+          accion: "Comprobar si el cuello de botella está en la base de datos o en el almacenamiento de objetos."
+
+  - name: projecta-trabajo
+    interval: 60s
+    rules:
+      - alert: ProjectaColaSinConsumir
+        expr: >
+          increase(projecta_tareas_ejecutadas_total[15m]) == 0
+          and projecta_trabajadores_celery > 0
+        for: 15m
+        labels:
+          severidad: alta
+        annotations:
+          resumen: "Las colas Celery no consumen tareas"
+          descripcion: >
+            Hay trabajadores conectados pero ninguna tarea se ha ejecutado en
+            15 minutos. Suele significar que el broker no es el esperado o
+            que la cola está bloqueada por una tarea que no termina.
+          accion: "Revisar la cola con `celery -A app.core.celery_app:celery_app inspect active`."
+
+      - alert: ProjectaTareasFallidas
+        expr: >
+          sum(rate(projecta_tareas_ejecutadas_total{resultado="error"}[10m])) > 0.1
+        for: 10m
+        labels:
+          severidad: media
+        annotations:
+          resumen: "Las tareas de Celery fallan de forma sostenida"
+          descripcion: >
+            Más de 0,1 fallos por segundo sostenidos durante 10 minutos.
+            Con reintentos, esto satura la cola de la cola muerta.
+          accion: "Revisar la cola muerta y el motivo de reintento de las tareas afectadas."
+
+  - name: projecta-dependencias
+    interval: 60s
+    rules:
+      - alert: ProjectaAlmacenamientoCaido
+        expr: projecta_almacenamiento_disponible == 0
+        for: 5m
+        labels:
+          severidad: media
+        annotations:
+          resumen: "El almacenamiento de objetos no está disponible"
+          descripcion: >
+            El almacenamiento no es una dependencia crítica: la API sigue
+            dando servicio y los adjuntos ya subidos se pueden listar. Pero
+            no se puede subir evidencia nueva, y eso bloquea trabajo real.
+          accion: "Comprobar el contenedor `minio` y su bucket. La disponibilidad de la API no se ve afectada."
+
+      - alert: ProjectaBaseDeDatosCaida
+        expr: projecta_base_de_datos_disponible == 0
+        for: 1m
+        labels:
+          severidad: critica
+        annotations:
+          resumen: "La base de datos no está disponible"
+          descripcion: >
+            A diferencia del almacenamiento, la base de datos **sí** es
+            crítica: sin ella no hay sesiones, ni auditoría, ni proyectos.
+            El endpoint `/ready` devuelve 503 mientras dure.
+          accion: "Escalar de inmediato. Comprobar PostgreSQL y el pool de conexiones."

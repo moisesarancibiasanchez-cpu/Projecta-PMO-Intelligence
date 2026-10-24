@@ -1,0 +1,105 @@
+{#- ---------------------------------------------------------------------------
+  index.html — portada del esqueleto de Projecta PMO Intelligence.
+  ---------------------------------------------------------------------------
+  Variables admitidas (todas opcionales):
+    · app_name, version, environment — variables comunes del contrato.
+    · estado / status / estado_global — estado global del esqueleto.
+    · servicios — lista de {nombre, descripcion, estado, detalle} o diccionario
+      {nombre: estado}. Si no llega, se muestra el catálogo del stack.
+    · resumen — texto breve (puede venir de un modelo de IA). Se imprime con
+      la macro `marcar_seguro`, que escapa antes de aplicar marcas.
+  --------------------------------------------------------------------------- -#}
+{% extends "base.html" %}
+{%- block title %}{{ nombre_app }} — Portada{% endblock %}
+{% block content %}
+<section class="portada">
+  <p class="portada__antetitulo">Esqueleto operativo · versión {{ version_app }}</p>
+  <h1 class="portada__titulo">{{ nombre_app }}</h1>
+  <p class="portada__bajada">La capa inteligente para gobernar proyectos, portafolios y decisiones.</p>
+  <p class="portada__tagline">Decide con evidencia. Avanza con control.</p>
+  <p class="portada__acciones">
+    <a class="boton boton--primario" href="/docs">Documentación de la API</a>
+    <a class="boton boton--secundario" href="/salud">Estado de salud (JSON)</a>
+  </p>
+</section>
+{%- set estado_global = (estado if (estado is defined and estado)
+   else (status if (status is defined and status)
+   else (estado_global if (estado_global is defined and estado_global) else none))) %}
+<section class="bloque">
+  <h2 class="bloque__titulo">Estado del esqueleto</h2>
+  <div class="tarjetas">
+    {%- with titulo = "Estado global", valor = valor_estado(estado_global), tono = tono_estado(estado_global, 'warn') %}
+    {%- include "partials/_tarjeta_estado.html" %}
+    {%- endwith %}
+    {%- with titulo = "Versión", valor = version_app, tono = "ok" %}
+    {%- include "partials/_tarjeta_estado.html" %}
+    {%- endwith %}
+    {%- with titulo = "Entorno", valor = entorno_app, tono = "ok" if entorno_app | lower in ['production', 'prod'] else "warn" %}
+    {%- include "partials/_tarjeta_estado.html" %}
+    {%- endwith %}
+  </div>
+</section>
+{%- if resumen is defined and resumen %}
+<section class="bloque">
+  <h2 class="bloque__titulo">Resumen</h2>
+  <p class="bloque__parrafo">{{ marcar_seguro(resumen) }}</p>
+</section>
+{%- endif %}
+{%- set catalogo = [
+  {"nombre": "FastAPI", "descripcion": "API HTTP, OpenAPI y render de plantillas.", "detalle": "Rutas /health, /ready y /salud"},
+  {"nombre": "PostgreSQL + pgvector", "descripcion": "Persistencia relacional y búsqueda vectorial.", "detalle": "PostgreSQL 16 con la extensión vector"},
+  {"nombre": "Redis", "descripcion": "Caché de aplicación, bloqueos y colas.", "detalle": "Redis 7"},
+  {"nombre": "Celery", "descripcion": "Procesamiento asíncrono repartido en 6 colas.", "detalle": "ingesta, documentos, ia, integraciones, reportes y mantenimiento"},
+  {"nombre": "Jinja2", "descripcion": "Capa de presentación con escapado automático.", "detalle": "autoescape activo en todas las plantillas"}
+] -%}
+{%- if servicios is defined and servicios %}
+  {%- if servicios is mapping %}
+    {%- set ns_servicios = namespace(filas=[]) %}
+    {%- for nombre_servicio, estado_servicio in servicios.items() %}
+      {%- set ns_servicios.filas = ns_servicios.filas + [{"nombre": nombre_servicio, "descripcion": "", "estado": estado_servicio, "detalle": ""}] %}
+    {%- endfor %}
+    {%- set filas = ns_servicios.filas %}
+  {%- else %}
+    {%- set filas = servicios %}
+  {%- endif %}
+{%- else %}
+  {%- set filas = catalogo %}
+{%- endif %}
+<section class="bloque">
+  <h2 class="bloque__titulo">Servicios del stack</h2>
+  <p class="bloque__descripcion">Componentes que sostienen el esqueleto de {{ nombre_app }} y su estado actual.</p>
+  <div class="tabla-contenedor">
+    <table class="tabla">
+      <caption class="tabla__leyenda">Servicios del stack y estado de cada uno</caption>
+      <thead>
+        <tr>
+          <th scope="col">Servicio</th>
+          <th scope="col">Función</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {%- for fila in filas %}
+        {%- set nombre = fila.nombre if (fila is mapping and fila.nombre is defined) else (fila if fila is string else 'Servicio') %}
+        {%- set descripcion = fila.descripcion if (fila is mapping and fila.descripcion is defined) else '' %}
+        {%- set estado = fila.estado if (fila is mapping and fila.estado is defined) else none %}
+        {%- set detalle = fila.detalle if (fila is mapping and fila.detalle is defined) else '' %}
+        <tr>
+          <td class="tabla__servicio" data-etiqueta="Servicio">{{ nombre }}</td>
+          <td data-etiqueta="Función">{{ descripcion }}</td>
+          <td data-etiqueta="Estado"><span class="badge badge--{{ tono_estado(estado, 'neutro') }}">{{ valor_estado(estado) }}</span></td>
+          <td data-etiqueta="Detalle">{{ detalle }}</td>
+        </tr>
+        {%- endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="bloque">
+  <h2 class="bloque__titulo">Cartera de proyectos</h2>
+  {%- with variable = "proyectos activos", slot = "La ingesta de proyectos entra en la siguiente iteración del esqueleto." %}
+  {%- include "partials/_estado_vacio.html" %}
+  {%- endwith %}
+</section>
+{% endblock %}
