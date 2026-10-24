@@ -34,11 +34,22 @@ APP_VERSION: Final[str] = "0.1.0"
 #: Raíz del repositorio (tres niveles arriba: app/core/config.py).
 RAIZ_PROYECTO: Final[Path] = Path(__file__).resolve().parents[2]
 
+#: ¿La aplicación se está ejecutando dentro de un contenedor?
+#:
+#: Railway y Docker montan el código en ``/app`` y **no** hay archivo
+#: ``.env``: las variables llegan por el entorno. Detectarlo permite que
+#: el mensaje de arranque diga dónde fijar las variables en cada caso, en
+#: lugar de mandar al operador a editar un fichero que no existe.
+_EJECUTANDOSE_EN_CONTENEDOR: Final[bool] = (
+    Path("/.dockerenv").exists()
+    or os.environ.get("RAILWAY_ENVIRONMENT") is not None
+    or str(RAIZ_PROYECTO) == "/app"
+)
+
 #: Traducción entre el nombre del campo de pydantic y el nombre de la variable
 #: de entorno. Se usa para que los errores de arranque nombren la variable
 #: de entorno exacta y no el nombre interno del campo.
-VARIABLES_OBLIGATORIAS: Final[dict[str, str]] = {
-    "secret_key": "SECRET_KEY",
+VARIABLES_OBLIGATORIAS: Final[dict[str, str]] = {    "secret_key": "SECRET_KEY",
     "database_url": "DATABASE_URL",
     "minio_access_key": "MINIO_ACCESS_KEY",
     "minio_secret_key": "MINIO_SECRET_KEY",
@@ -195,6 +206,23 @@ def _mensaje_configuracion_invalida(error: ValidationError) -> str:
         "Definí esas variables en el entorno o en el archivo `.env` de la raíz del proyecto "
         f"({RAIZ_PROYECTO / '.env'}).",
     ]
+    # En un contenedor desplegado (Railway, Docker) **no hay** archivo
+    # `.env`: las variables llegan por el entorno. Decirle al operador que
+    # edite un fichero que no existe es mandarlo a una pared. El mensaje
+    # se adapta al lugar desde el que arranca la aplicación.
+    if _EJECUTANDOSE_EN_CONTENEDOR:
+        mensaje += [
+            "",
+            "Esta aplicación está corriendo en un contenedor: no hay archivo `.env` que "
+            "editar. Fijá las variables **en el panel del servicio** (Railway: pestaña "
+            "Variables del servicio, o `railway variable set --service <servicio>`) y "
+            "volvé a desplegar.",
+            "",
+            "  · SECRET_KEY  →  clave de firma de la aplicación",
+            "  · DATABASE_URL →  referencia a la base de datos del proyecto",
+            "  · MINIO_ACCESS_KEY y MINIO_SECRET_KEY → credenciales del almacenamiento "
+            "de objetos",
+        ]
     return "\n".join(mensaje)
 
 
