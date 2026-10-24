@@ -128,9 +128,15 @@ configurar beat \
 log "Volúmenes persistentes"
 # PostgreSQL: /var/lib/postgresql, NO /var/lib/postgresql/data. Es la
 # trampa clásica de PostgreSQL 18 y del contenedor oficial de pgvector.
-ejecutar railway volume add --service postgres --mount-path /var/lib/postgresql
+#
+# En la CLI v5 (`railway volume add`) el servicio se toma del que esté
+# **enlazado en ese momento**: el flag `--service` ya no existe. Por eso
+# se enlaza el servicio justo antes de crear su volumen.
+ejecutar railway service link postgres
+ejecutar railway volume add --mount-path /var/lib/postgresql
 # MinIO: los objetos en /data.
-ejecutar railway volume add --service minio --mount-path /data
+ejecutar railway service link minio
+ejecutar railway volume add --mount-path /data
 
 # ─────────────────────────── variables ───────────────────────────
 
