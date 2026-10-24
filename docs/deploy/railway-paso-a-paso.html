@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es" xml:lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Projecta PMO Intelligence - Despliegue en Railway, paso a paso</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <style type="text/css">
+:root {
+--tinta: #1a1d21;
+--tinta-suave: #5b6570;
+--linea: #e3e6ea;
+--fondo: #ffffff;
+--fondo-alt: #f7f8fa;
+--acento: #1f4e79;
+--acento-suave: #eaf1f8;
+--alerta: #8a2f1c;
+--alerta-fondo: #fdf0ec;
+--ok: #1d6b3f;
+--ok-fondo: #ecf7f0;
+--codigo: #f2f4f6;
+--radio: 6px;
+--ancho: 62rem;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+margin: 0;
+padding: 0 1.25rem 5rem;
+background: var(--fondo);
+color: var(--tinta);
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+font-size: 16px;
+line-height: 1.65;
+}
+main { max-width: var(--ancho); margin: 0 auto; }
+h1, h2, h3, h4 { line-height: 1.25; color: var(--acento); margin: 2.2rem 0 0.7rem; }
+h1 { font-size: 1.9rem; margin-top: 2.6rem; padding-bottom: 0.5rem; border-bottom: 3px solid var(--acento); }
+h2 { font-size: 1.45rem; border-bottom: 1px solid var(--linea); padding-bottom: 0.3rem; }
+h3 { font-size: 1.12rem; }
+h4 { font-size: 1rem; }
+p, li { color: var(--tinta); }
+a { color: var(--acento); }
+a:hover { text-decoration: underline; }
+strong { color: var(--tinta); }
+code {
+background: var(--codigo);
+padding: 0.12em 0.38em;
+border-radius: 3px;
+font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+font-size: 0.88em;
+overflow-wrap: anywhere;
+}
+pre {
+background: var(--fondo-alt);
+border: 1px solid var(--linea);
+border-left: 3px solid var(--acento);
+border-radius: var(--radio);
+padding: 0.9rem 1rem;
+overflow-x: auto;
+line-height: 1.5;
+}
+pre code { background: none; padding: 0; font-size: 0.85rem; }
+blockquote {
+margin: 1.1rem 0;
+padding: 0.7rem 1.1rem;
+background: var(--acento-suave);
+border-left: 4px solid var(--acento);
+border-radius: 0 var(--radio) var(--radio) 0;
+}
+blockquote p { margin: 0.3rem 0; }
+table {
+width: 100%;
+border-collapse: collapse;
+margin: 1.1rem 0;
+font-size: 0.94rem;
+}
+th, td { border: 1px solid var(--linea); padding: 0.55rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: var(--fondo-alt); font-weight: 600; color: var(--acento); }
+tbody tr:nth-child(even) { background: #fbfcfd; }
+hr { border: none; border-top: 1px solid var(--linea); margin: 2.4rem 0; }
+ul, ol { padding-left: 1.5rem; }
+li { margin: 0.3rem 0; }
+@media print {
+body { padding: 0; font-size: 11pt; }
+h1, h2 { break-after: avoid; }
+pre, table { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Projecta PMO Intelligence - Despliegue en Railway,
+paso a paso</h1>
+</header>
+<h1 id="projecta-pmo-intelligence--despliegue-en-railway-paso-a-paso">Projecta
+PMO Intelligence — Despliegue en Railway, paso a paso</h1>
+<blockquote>
+<p>Guía operativa. Todo lo que hay aquí está <strong>verificado contra
+la CLI real</strong> (<code>railway</code> v5.71.0) y contra la
+documentación oficial de Railway. Lo que <strong>no</strong> está
+verificado está marcado <strong>NO VALIDADO</strong>, y en este entorno
+no hay cuenta de Railway: el despliegue en sí no se ha ejecutado.</p>
+</blockquote>
+<hr />
+<h2 id="0-resumen-en-una-página">0. Resumen en una página</h2>
+<table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Paso</th>
+<th>Qué pasa</th>
+<th>Riesgo</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Publicar el código en GitHub</td>
+<td>Railway despliega desde el repo</td>
+<td>Bajo</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Crear el proyecto en Railway</td>
+<td>Panel vacío, sin servicios</td>
+<td>Bajo</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Conectar el repo de GitHub</td>
+<td>Railway pide instalar su GitHub App</td>
+<td><strong>Decisión de acceso</strong></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Crear 6 servicios</td>
+<td><code>postgres</code>, <code>redis</code>, <code>minio</code>,
+<code>api</code>, <code>worker</code>, <code>beat</code></td>
+<td>Bajo</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Crear las 2 variables compartidas</td>
+<td><code>SECRET_KEY</code> y <code>MINIO_ROOT_PASSWORD</code>,
+<strong>selladas</strong></td>
+<td><strong>Alto si se hace mal</strong></td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Fijar las variables por servicio</td>
+<td>Referencias <code>${{...}}</code>, no valores</td>
+<td>Medio</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Crear los volúmenes</td>
+<td>PostgreSQL en <code>/var/lib/postgresql</code></td>
+<td><strong>Trampa clásica</strong></td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>Desplegar</td>
+<td><code>preDeploy</code> aplica migraciones con Cerrojo</td>
+<td>Medio</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>Verificar</td>
+<td><code>/ready</code> y dominio</td>
+<td>Bajo</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Regla de oro de este despliegue</strong>: ningún secreto
+<strong>se escribe ni se copia</strong> a mano. Todo lo que se puede
+referenciar se referencia (<code>${{postgres.DATABASE_URL}}</code>), y
+lo que no (la clave de firma) se genera <strong>en el servidor</strong>
+y se sella <strong>en el panel</strong> para que no se pueda volver a
+leer.</p>
+<hr />
+<h2 id="1-publicar-el-código-en-github">1. Publicar el código en
+GitHub</h2>
+<p>El repositorio ya está listo para publicar. El <code>README</code> de
+la raíz describe cómo hacerlo con seguridad, y
+<code>scripts/github-auth-seguro.sh</code> ofrece cuatro vías (SSH con
+clave de despliegue, <code>gh auth login</code> interactivo, token desde
+fichero <code>0600</code>, o push desde tu propio equipo con el
+<em>bundle</em>).</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> /workspace/repo</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push <span class="at">-u</span> origin main</span></code></pre></div>
+<hr />
+<h2 id="2-crear-el-proyecto-en-railway">2. Crear el proyecto en
+Railway</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> login          <span class="co"># abre el navegador; en SSH, da un código de dispositivo</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> init           <span class="co"># crea el proyecto y lo enlaza a este directorio</span></span></code></pre></div>
+<p>Si ya tienes el proyecto:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> link <span class="at">--project</span> <span class="op">&lt;</span>ID<span class="op">&gt;</span> --environment production</span></code></pre></div>
+<p><code>railway init</code> deja el directorio enlazado. A partir de
+aquí, todos los comandos de este documento asumen que estás
+enlazado.</p>
+<hr />
+<h2 id="3-conectar-el-repositorio-de-github">3. Conectar el repositorio
+de GitHub</h2>
+<p><strong>Aquí no se usa ningún token.</strong> Railway se conecta a
+GitHub con su <strong>GitHub App</strong>: tú instalas la aplicación
+desde GitHub y le das acceso a los repositorios que elijas.</p>
+<p>Desde el panel:</p>
+<ol type="1">
+<li><code>railway.com/new</code> → <strong>Deploy from GitHub
+repo</strong>.</li>
+<li>Eliges
+<code>moisesarancibiasanchez-cpu/Projecta-PMO-Intelligence</code>.</li>
+<li>Si tu cuenta de Railway no está enlazada a GitHub, se te pide
+hacerlo: <strong>Account Settings → Integrations → Connect
+GitHub</strong>. Ahí eliges qué repositorios ve la app.</li>
+</ol>
+<p>Desde la CLI (equivalente):</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> service source connect <span class="dt">\</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--repo</span> moisesarancibiasanchez-cpu/Projecta-PMO-Intelligence <span class="dt">\</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--branch</span> main <span class="dt">\</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--service</span> api</span></code></pre></div>
+<p><strong>Lo que hay que comprobar en GitHub</strong> (Settings →
+Applications → Installed GitHub Apps → Railway → Configure):</p>
+<ul>
+<li><strong>Repository access</strong>: que incluya
+<code>Projecta-PMO-Intelligence</code>.</li>
+<li><strong>Permissions</strong>: <code>Contents: Read and write</code>
+(Railway lo necesita para el autodespliegue).</li>
+</ul>
+<blockquote>
+<p><strong>Autodespliegue</strong>: funciona solo si al menos un miembro
+del proyecto tiene una cuenta de GitHub <strong>enlazada a
+Railway</strong> con permisos de <em>contributor</em> sobre el
+repositorio. Si el push lo hace una persona sin esa cuenta, Railway
+<strong>no</strong> despliega y crea una <strong>Deployment
+Approval</strong> pendiente. Esto es una medida deliberada: impide que
+cualquiera que empuje a la rama active un despliegue.</p>
+</blockquote>
+<hr />
+<h2 id="4-los-seis-servicios">4. Los seis servicios</h2>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Bases de datos</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> add <span class="at">--database</span> postgres <span class="at">--service</span> postgres</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> add <span class="at">--database</span> redis <span class="at">--service</span> redis</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> add <span class="at">--image</span> minio/minio <span class="at">--service</span> minio</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Aplicación</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> add <span class="at">--service</span> api</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> add <span class="at">--service</span> worker</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> add <span class="at">--service</span> beat</span></code></pre></div>
+<p><strong>Solo <code>api</code> tiene dominio público.</strong> Los
+otros cinco se hablan por la red privada de Railway
+(<code>*.railway.internal</code>).</p>
+<p>El comando <code>railway add</code> <strong>no tiene</strong> ningún
+flag <code>--plugin</code>: la plantilla de pgvector, si la necesitas,
+se añade desde el panel.</p>
+<hr />
+<h2 id="5-las-dos-variables-compartidas-y-selladas">5. Las dos variables
+compartidas (y selladas)</h2>
+<p>Estas <strong>no se pueden crear desde la CLI</strong>: se crean en
+el panel, y se <strong>cierran</strong> con la opción
+<strong>Seal</strong>.</p>
+<blockquote>
+<p><strong>Project Settings → Shared Variables</strong>, eliges el
+entorno <code>production</code>, añades la variable y pulsas
+<strong>Add</strong>. Después, en el menú de tres puntos de la variable,
+<strong>Seal</strong>.</p>
+</blockquote>
+<table>
+<thead>
+<tr class="header">
+<th>Nombre</th>
+<th>Valor</th>
+<th>Cómo se genera</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>SECRET_KEY</code></td>
+<td>Clave de firma de la aplicación</td>
+<td><code>openssl rand -hex 32</code></td>
+</tr>
+<tr class="even">
+<td><code>MINIO_ROOT_PASSWORD</code></td>
+<td>Contraseña del almacén de objetos</td>
+<td><code>openssl rand -hex 24</code></td>
+</tr>
+</tbody>
+</table>
+<p>La clave de firma <strong>se genera en el servidor que la va a
+usar</strong> y <strong>se pega una sola vez</strong> en el panel.
+Sellada, su valor:</p>
+<ul>
+<li><strong>sí</strong> se entrega a las compilaciones y a los
+despliegues,</li>
+<li><strong>no</strong> se puede volver a leer en el panel,</li>
+<li><strong>no</strong> se puede des-sellar,</li>
+<li><strong>no</strong> aparece en <code>railway variables</code> ni en
+<code>railway run</code> por la CLI.</li>
+</ul>
+<p>Es decir: <strong>una vez la escribes, nadie —tú incluido— puede
+volver a verla.</strong> Si se pierde, se genera otra y se actualiza; no
+se puede recuperar.</p>
+<hr />
+<h2 id="6-variables-por-servicio">6. Variables por servicio</h2>
+<p>Todas como <strong>referencias</strong>, nunca como valores. Una
+referencia no contiene el secreto: Railway lo resuelve al arrancar el
+servicio.</p>
+<h3 id="servicio-api">Servicio <code>api</code></h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;DATABASE_URL=</span><span class="dt">\$</span><span class="st">{{postgres.DATABASE_URL}}&quot;</span>      <span class="at">--service</span> api</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;REDIS_URL=</span><span class="dt">\$</span><span class="st">{{redis.REDIS_URL}}&quot;</span>              <span class="at">--service</span> api</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;MINIO_ENDPOINT=http://minio.railway.internal:9000&quot;</span> <span class="at">--service</span> api</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;MINIO_ACCESS_KEY=</span><span class="dt">\$</span><span class="st">{{minio.MINIO_ROOT_USER}}&quot;</span> <span class="at">--service</span> api</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;MINIO_SECRET_KEY=</span><span class="dt">\$</span><span class="st">{{minio.MINIO_ROOT_PASSWORD}}&quot;</span> <span class="at">--service</span> api</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;SECRET_KEY=</span><span class="dt">\$</span><span class="st">{{shared.SECRET_KEY}}&quot;</span>           <span class="at">--service</span> api</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;APP_ENV=production&quot;</span>                            <span class="at">--service</span> api</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;DEBUG=false&quot;</span>                                   <span class="at">--service</span> api</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;CORS_ORIGINS=https://tu-dominio.example&quot;</span>       <span class="at">--service</span> api</span></code></pre></div>
+<h3 id="servicios-worker-y-beat">Servicios <code>worker</code> y
+<code>beat</code></h3>
+<p>Los mismos, <strong>menos <code>SECRET_KEY</code></strong> (no firman
+nada):</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> servicio <span class="kw">in</span> worker beat<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="ex">railway</span> variable set <span class="st">&quot;DATABASE_URL=</span><span class="dt">\$</span><span class="st">{{postgres.DATABASE_URL}}&quot;</span>           <span class="at">--service</span> <span class="st">&quot;</span><span class="va">$servicio</span><span class="st">&quot;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">railway</span> variable set <span class="st">&quot;REDIS_URL=</span><span class="dt">\$</span><span class="st">{{redis.REDIS_URL}}&quot;</span>                   <span class="at">--service</span> <span class="st">&quot;</span><span class="va">$servicio</span><span class="st">&quot;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="ex">railway</span> variable set <span class="st">&quot;MINIO_ENDPOINT=http://minio.railway.internal:9000&quot;</span>  <span class="at">--service</span> <span class="st">&quot;</span><span class="va">$servicio</span><span class="st">&quot;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="ex">railway</span> variable set <span class="st">&quot;MINIO_ACCESS_KEY=</span><span class="dt">\$</span><span class="st">{{minio.MINIO_ROOT_USER}}&quot;</span>      <span class="at">--service</span> <span class="st">&quot;</span><span class="va">$servicio</span><span class="st">&quot;</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="ex">railway</span> variable set <span class="st">&quot;MINIO_SECRET_KEY=</span><span class="dt">\$</span><span class="st">{{minio.MINIO_ROOT_PASSWORD}}&quot;</span>  <span class="at">--service</span> <span class="st">&quot;</span><span class="va">$servicio</span><span class="st">&quot;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code></pre></div>
+<h3 id="servicio-minio">Servicio <code>minio</code></h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;MINIO_ROOT_USER=projecta&quot;</span>                <span class="at">--service</span> minio</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variable set <span class="st">&quot;MINIO_ROOT_PASSWORD=</span><span class="dt">\$</span><span class="st">{{shared.MINIO_ROOT_PASSWORD}}&quot;</span> <span class="at">--service</span> minio</span></code></pre></div>
+<blockquote>
+<p><strong>Doble comprobación</strong>: <code>MINIO_ROOT_USER</code> lo
+pones tú, pero la contraseña sale de la compartida. La API la recibe
+como <code>MINIO_SECRET_KEY</code>. Los dos lados tienen que coincidir
+<strong>exactamente</strong>, o el acceso a objetos fallará con un 403
+en tiempo de ejecución.</p>
+</blockquote>
+<h3 id="lo-que-no-hay-que-fijar">Lo que NO hay que fijar</h3>
+<p><code>PORT</code>, <code>RAILWAY_PUBLIC_DOMAIN</code> y
+<code>RAILWAY_PRIVATE_DOMAIN</code> los da Railway solo.
+<code>CELERY_BROKER_URL</code> y <code>CELERY_RESULT_BACKEND</code>
+<strong>se derivan</strong> de <code>REDIS_URL</code> (bases 1 y 2);
+Railway entrega un único Redis.</p>
+<h3 id="comprobación">Comprobación</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variables <span class="at">--service</span> api <span class="at">--kv</span></span></code></pre></div>
+<p>Las referencias se muestran; <strong>los valores sellados
+no</strong>. Que no aparezcan es la prueba de que el sellado
+funciona.</p>
+<hr />
+<h2 id="7-los-volúmenes-persistentes">7. Los volúmenes persistentes</h2>
+<blockquote>
+<p><strong>Trampa clásica</strong>: el volumen de PostgreSQL va en
+<strong><code>/var/lib/postgresql</code></strong>, <strong>no</strong>
+en <code>/var/lib/postgresql/data</code>. En PostgreSQL 18 y en el
+contenedor oficial de pgvector, montar en <code>data</code> deja la base
+de datos sin usar.</p>
+</blockquote>
+<p>En la CLI v5, <code>railway volume add</code> <strong>ya no tiene
+<code>--service</code></strong>: el servicio se toma del que esté
+enlazado en ese momento.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> service link postgres</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> volume add <span class="at">--mount-path</span> /var/lib/postgresql</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> service link minio</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> volume add <span class="at">--mount-path</span> /data</span></code></pre></div>
+<hr />
+<h2 id="8-desplegar">8. Desplegar</h2>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> up <span class="at">--service</span> api    <span class="at">--detach</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> up <span class="at">--service</span> worker <span class="at">--detach</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> up <span class="at">--service</span> beat   <span class="at">--detach</span></span></code></pre></div>
+<p>Cada servicio ejecuta su <code>preDeployCommand</code>
+<strong>antes</strong> de arrancar:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Servicio</th>
+<th><code>preDeployCommand</code></th>
+<th>Qué hace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>api</code></td>
+<td><code>python -m scripts.railway_preparar</code></td>
+<td>Crea el esquema, aplica migraciones, comprueba el contrato</td>
+</tr>
+<tr class="even">
+<td><code>worker</code></td>
+<td><code>python -m scripts.railway_preparar --solo-migracion</code></td>
+<td>Solo migraciones</td>
+</tr>
+<tr class="odd">
+<td><code>beat</code></td>
+<td><code>python -m scripts.railway_preparar --solo-migracion</code></td>
+<td>Solo migraciones</td>
+</tr>
+</tbody>
+</table>
+<p>Las migraciones están serializadas con un <strong>cerrojo de
+Postgres</strong> (<code>pg_advisory_lock</code>), así que los tres
+pre-deploy pueden correr a la vez sin pisar el esquema. El comando de
+preparación <strong>falla con un mensaje explícito</strong> si el plan
+de PostgreSQL no trae la extensión <code>vector</code>.</p>
+<hr />
+<h2 id="9-verificar">9. Verificar</h2>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># El dominio de la API</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> domain <span class="at">--service</span> api</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Los logs, en vivo</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> logs <span class="at">--service</span> api</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> logs <span class="at">--service</span> worker</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> logs <span class="at">--service</span> beat</span></code></pre></div>
+<p>Pruebas sobre el dominio público:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> https://<span class="op">&lt;</span>dominio<span class="op">&gt;</span>/health</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> https://<span class="op">&lt;</span>dominio<span class="op">&gt;</span>/ready</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-s</span> <span class="at">-o</span> /dev/null <span class="at">-w</span> <span class="st">&quot;%{http_code}\n&quot;</span> https://<span class="op">&lt;</span>dominio<span class="op">&gt;</span>/docs</span></code></pre></div>
+<p><code>/ready</code> devuelve 200 solo cuando <strong>la base de datos
+y Redis responden</strong>.</p>
+<hr />
+<h2 id="10-las-cinco-decisiones-que-bloquean-el-piloto">10. Las cinco
+decisiones que bloquean el piloto</h2>
+<p>Estas <strong>no son técnicas</strong> y no se pueden tomar desde el
+repositorio. Están detalladas en
+<code>output/railway/lo-que-falta-railway.md</code>.</p>
+<table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Decisión</th>
+<th>Por qué bloquea</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>🔴 1</td>
+<td><strong>¿Residen los datos en Railway?</strong></td>
+<td>Si no, Railway es solo el entorno de pruebas</td>
+</tr>
+<tr class="even">
+<td>🔴 2</td>
+<td><strong>¿Quién alcanza la API pública?</strong></td>
+<td>Sin control de acceso, cualquiera con la URL puede intentar
+entrar</td>
+</tr>
+<tr class="odd">
+<td>🔴 3</td>
+<td><strong>¿Qué motor de transcripción y dónde?</strong></td>
+<td>Decide si el audio sale del perímetro</td>
+</tr>
+<tr class="even">
+<td>🔴 4</td>
+<td><strong>¿Entorno objetivo de la interfaz de captura?</strong></td>
+<td>Sin él no se puede declarar compatibilidad de navegador</td>
+</tr>
+<tr class="odd">
+<td>🔴 5</td>
+<td><strong>¿Quién autoriza la publicación en el lado del
+cliente?</strong></td>
+<td>El Edge Connector escribe en Jira y Azure DevOps</td>
+</tr>
+</tbody>
+</table>
+<p><strong>La número 2 es la urgente</strong>: Railway expone la API a
+Internet en cuanto generas el dominio. Mientras no haya respuesta, la
+opción prudente es <strong>generar el dominio solo cuando la decisión
+esté tomada</strong>, y usar mientras tanto la contraseña de acceso de
+Railway o un proxy corporativo.</p>
+<hr />
+<h2 id="11-lo-que-no-está-validado">11. Lo que NO está validado</h2>
+<ul>
+<li><strong>El despliegue real.</strong> No hay cuenta de Railway en
+este entorno: <code>railway up</code> <strong>no se ha
+ejecutado</strong>. Sí están verificados la sintaxis de todos los
+comandos contra la CLI v5.71.0 y la adaptación de la configuración.</li>
+<li><strong>Que el plan de PostgreSQL de Railway traiga
+<code>vector</code>.</strong> El script de preparación lo comprueba y
+falla con un mensaje claro, pero no se ha comprobado en una cuenta real.
+La alternativa es la plantilla de pgvector.</li>
+<li><strong>El dominio público, el TLS y el sellado de
+secretos</strong>, que solo se comprueban en el panel.</li>
+<li><strong>Los volúmenes</strong>, que solo se comprueban con una base
+de datos real.</li>
+</ul>
+<hr />
+<h2 id="12-recuperación-cómo-volver-atrás">12. Recuperación: cómo volver
+atrás</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Problema</th>
+<th>Qué hacer</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>La API no arranca</td>
+<td><code>railway logs --service api</code> → mira el error de arranque;
+el mensaje nombra la variable exacta que falta</td>
+</tr>
+<tr class="even">
+<td><code>/ready</code> devuelve 503</td>
+<td>El healthcheck crítico es <code>database</code> +
+<code>redis</code>: mira los logs de <code>postgres</code> y
+<code>redis</code></td>
+</tr>
+<tr class="odd">
+<td>El despliegue se queda en «Building»</td>
+<td><code>railway logs --service api</code> → si falla el
+<code>preDeploy</code>, es el esquema: mira el mensaje del script de
+preparación</td>
+</tr>
+<tr class="even">
+<td>Error de extensión <code>vector</code></td>
+<td>El plan de PostgreSQL no trae pgvector: cambia a la plantilla de
+pgvector en el panel</td>
+</tr>
+<tr class="odd">
+<td>Falla el acceso a objetos (403)</td>
+<td><code>MINIO_ROOT_USER</code> y la clave que espera
+<code>MINIO_SECRET_KEY</code> no coinciden</td>
+</tr>
+<tr class="even">
+<td>La migración se bloquea</td>
+<td>El cerrojo <code>pg_advisory_lock</code> lo tiene uno de los tres
+pre-deploy: mira los logs de <code>worker</code> y
+<code>beat</code></td>
+</tr>
+<tr class="odd">
+<td>Se perdió el <code>SECRET_KEY</code> sellado</td>
+<td><strong>No se puede recuperar.</strong> Genera otra
+(<code>openssl rand -hex 32</code>), actualiza la compartida sellada y
+redespliega</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

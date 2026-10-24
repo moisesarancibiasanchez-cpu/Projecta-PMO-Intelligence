@@ -1,0 +1,82 @@
+/* Projecta PMO Intelligence — hoja de estilo de las guías operativas.
+   Autonomous: sin CDN, sin fuentes externas, sin JavaScript. */
+:root {
+  --tinta: #1a1d21;
+  --tinta-suave: #5b6570;
+  --linea: #e3e6ea;
+  --fondo: #ffffff;
+  --fondo-alt: #f7f8fa;
+  --acento: #1f4e79;
+  --acento-suave: #eaf1f8;
+  --alerta: #8a2f1c;
+  --alerta-fondo: #fdf0ec;
+  --ok: #1d6b3f;
+  --ok-fondo: #ecf7f0;
+  --codigo: #f2f4f6;
+  --radio: 6px;
+  --ancho: 62rem;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  padding: 0 1.25rem 5rem;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+}
+main { max-width: var(--ancho); margin: 0 auto; }
+h1, h2, h3, h4 { line-height: 1.25; color: var(--acento); margin: 2.2rem 0 0.7rem; }
+h1 { font-size: 1.9rem; margin-top: 2.6rem; padding-bottom: 0.5rem; border-bottom: 3px solid var(--acento); }
+h2 { font-size: 1.45rem; border-bottom: 1px solid var(--linea); padding-bottom: 0.3rem; }
+h3 { font-size: 1.12rem; }
+h4 { font-size: 1rem; }
+p, li { color: var(--tinta); }
+a { color: var(--acento); }
+a:hover { text-decoration: underline; }
+strong { color: var(--tinta); }
+code {
+  background: var(--codigo);
+  padding: 0.12em 0.38em;
+  border-radius: 3px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+}
+pre {
+  background: var(--fondo-alt);
+  border: 1px solid var(--linea);
+  border-left: 3px solid var(--acento);
+  border-radius: var(--radio);
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+pre code { background: none; padding: 0; font-size: 0.85rem; }
+blockquote {
+  margin: 1.1rem 0;
+  padding: 0.7rem 1.1rem;
+  background: var(--acento-suave);
+  border-left: 4px solid var(--acento);
+  border-radius: 0 var(--radio) var(--radio) 0;
+}
+blockquote p { margin: 0.3rem 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.1rem 0;
+  font-size: 0.94rem;
+}
+th, td { border: 1px solid var(--linea); padding: 0.55rem 0.7rem; text-align: left; vertical-align: top; }
+th { background: var(--fondo-alt); font-weight: 600; color: var(--acento); }
+tbody tr:nth-child(even) { background: #fbfcfd; }
+hr { border: none; border-top: 1px solid var(--linea); margin: 2.4rem 0; }
+ul, ol { padding-left: 1.5rem; }
+li { margin: 0.3rem 0; }
+@media print {
+  body { padding: 0; font-size: 11pt; }
+  h1, h2 { break-after: avoid; }
+  pre, table { break-inside: avoid; }
+}
