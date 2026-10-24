@@ -491,6 +491,77 @@ de PostgreSQL no trae la extensión <code>vector</code>.</p>
 <p><code>/ready</code> devuelve 200 solo cuando <strong>la base de datos
 y Redis responden</strong>.</p>
 <hr />
+<h2 id="9-bis-síntoma-1-el-servicio-crashea-al-arrancar">9 bis. Síntoma
+1: el servicio crashea al arrancar</h2>
+<p>Es lo primero que pasa si se despliega sin las variables
+obligatorias. El log termina así:</p>
+<pre><code>app.core.config.ConfiguracionInvalidaError: Configuración inválida de
+Projecta PMO Intelligence.
+La aplicación no puede arrancar porque faltan variables de entorno
+obligatorias o tienen un valor vacío:
+
+  - SECRET_KEY: no está definida.
+  - DATABASE_URL: no está definida.
+  - MINIO_ACCESS_KEY: no está definida.
+  - MINIO_SECRET_KEY: no está definida.</code></pre>
+<p><strong>No es un fallo del código.</strong> Es la comprobación de
+arranque haciendo su trabajo: la configuración se resuelve al importar
+el módulo, y sin esas cuatro variables la aplicación no puede
+funcionar.</p>
+<p><strong>Cómo se arregla</strong> (en el orden):</p>
+<ol type="1">
+<li>Fija las cuatro variables <strong>en el servicio
+<code>api</code></strong> (no en el proyecto): las dos primeras
+referencias a los servicios de datos, y las dos credenciales de MinIO.
+Ver §6.</li>
+<li>Comprueba que están en el servicio correcto:
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> variables <span class="at">--service</span> api <span class="at">--kv</span></span></code></pre></div></li>
+<li>Redespliega. Railway <strong>no</strong> reinicia el servicio por sí
+solo al cambiar una variable si el servicio está parado: usa
+<strong>Redeploy</strong> en el panel.</li>
+</ol>
+<blockquote>
+<p><strong>El mensaje se adapta al entorno.</strong> En un contenedor no
+existe el archivo <code>.env</code>, así que el error dice
+explícitamente que las variables van en el panel del servicio o en
+<code>railway variable set --service &lt;servicio&gt;</code>. Ese ajuste
+se hizo a raíz de este despliegue fallido.</p>
+</blockquote>
+<p><strong>Un detalle que confunde al leer el traceback</strong>: la
+cadena de imports (<code>main.py</code> → <code>routers</code> →
+<code>deps</code> → <code>config.py</code>) hace que Python muestre
+varias líneas de fuente de marcos distintos. La línea
+<code>from app.api.routers import (</code> que aparece junto a
+<code>settings = Settings()</code> <strong>no</strong> es un import
+roto: pertenece al marco de <code>app/main.py</code>, que es el que
+dispara la cadena. El fallo real está en la línea de
+<code>settings = Settings()</code>.</p>
+<hr />
+<h2 id="9-ter-síntoma-2-el-despliegue-no-se-dispara-al-hacer-push">9
+ter. Síntoma 2: el despliegue no se dispara al hacer push</h2>
+<p>Si el log de un despliegue muestra un SHA de commit que <strong>no
+existe</strong> en tu repositorio, el servicio <strong>no está conectado
+a GitHub</strong>: se construyó desde una subida local
+(<code>railway up</code> sobre un directorio) y <strong>no habrá
+autodespliegue</strong> cuando hagas push.</p>
+<p>Se comprueba en el panel, en el servicio → <strong>Settings →
+Source</strong>: debe aparecer el repositorio de GitHub. Y se arregla
+conectando la fuente:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">railway</span> service source connect <span class="dt">\</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--repo</span> moisesarancibiasanchez-cpu/Projecta-PMO-Intelligence <span class="dt">\</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--branch</span> main <span class="dt">\</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--service</span> api</span></code></pre></div>
+<p>Repetir para <code>worker</code> y <code>beat</code>.</p>
+<blockquote>
+<p><strong>El autodespliegue</strong> solo funciona si al menos un
+miembro del proyecto tiene una cuenta de GitHub <strong>enlazada a
+Railway</strong> con permisos de <em>contributor</em> sobre el
+repositorio, y la GitHub App de Railway tiene acceso a ese repositorio.
+Si no, Railway crea una <strong>Deployment Approval</strong> pendiente:
+es deliberado, e impide que cualquiera que empuje a la rama active un
+despliegue.</p>
+</blockquote>
+<hr />
 <h2 id="10-las-cinco-decisiones-que-bloquean-el-piloto">10. Las cinco
 decisiones que bloquean el piloto</h2>
 <p>Estas <strong>no son técnicas</strong> y no se pueden tomar desde el

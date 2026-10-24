@@ -276,6 +276,82 @@ curl -s -o /dev/null -w "%{http_code}\n" https://<dominio>/docs
 
 ---
 
+## 9 bis. Síntoma 1: el servicio crashea al arrancar
+
+Es lo primero que pasa si se despliega sin las variables obligatorias. El
+log termina así:
+
+```
+app.core.config.ConfiguracionInvalidaError: Configuración inválida de
+Projecta PMO Intelligence.
+La aplicación no puede arrancar porque faltan variables de entorno
+obligatorias o tienen un valor vacío:
+
+  - SECRET_KEY: no está definida.
+  - DATABASE_URL: no está definida.
+  - MINIO_ACCESS_KEY: no está definida.
+  - MINIO_SECRET_KEY: no está definida.
+```
+
+**No es un fallo del código.** Es la comprobación de arranque haciendo su
+trabajo: la configuración se resuelve al importar el módulo, y sin esas
+cuatro variables la aplicación no puede funcionar.
+
+**Cómo se arregla** (en el orden):
+
+1. Fija las cuatro variables **en el servicio `api`** (no en el proyecto):
+   las dos primeras referencias a los servicios de datos, y las dos
+   credenciales de MinIO. Ver §6.
+2. Comprueba que están en el servicio correcto:
+   ```bash
+   railway variables --service api --kv
+   ```
+3. Redespliega. Railway **no** reinicia el servicio por sí solo al cambiar
+   una variable si el servicio está parado: usa **Redeploy** en el panel.
+
+> **El mensaje se adapta al entorno.** En un contenedor no existe el archivo
+> `.env`, así que el error dice explícitamente que las variables van en el
+> panel del servicio o en `railway variable set --service <servicio>`. Ese
+> ajuste se hizo a raíz de este despliegue fallido.
+
+**Un detalle que confunde al leer el traceback**: la cadena de imports
+(`main.py` → `routers` → `deps` → `config.py`) hace que Python muestre
+varias líneas de fuente de marcos distintos. La línea
+`from app.api.routers import (` que aparece junto a
+`settings = Settings()` **no** es un import roto: pertenece al marco de
+`app/main.py`, que es el que dispara la cadena. El fallo real está en la
+línea de `settings = Settings()`.
+
+---
+
+## 9 ter. Síntoma 2: el despliegue no se dispara al hacer push
+
+Si el log de un despliegue muestra un SHA de commit que **no existe** en tu
+repositorio, el servicio **no está conectado a GitHub**: se construyó desde
+una subida local (`railway up` sobre un directorio) y **no habrá
+autodespliegue** cuando hagas push.
+
+Se comprueba en el panel, en el servicio → **Settings → Source**: debe
+aparecer el repositorio de GitHub. Y se arregla conectando la fuente:
+
+```bash
+railway service source connect \
+    --repo moisesarancibiasanchez-cpu/Projecta-PMO-Intelligence \
+    --branch main \
+    --service api
+```
+
+Repetir para `worker` y `beat`.
+
+> **El autodespliegue** solo funciona si al menos un miembro del proyecto
+> tiene una cuenta de GitHub **enlazada a Railway** con permisos de
+> *contributor* sobre el repositorio, y la GitHub App de Railway tiene
+> acceso a ese repositorio. Si no, Railway crea una **Deployment Approval**
+> pendiente: es deliberado, e impide que cualquiera que empuje a la rama
+> active un despliegue.
+
+---
+
 ## 10. Las cinco decisiones que bloquean el piloto
 
 Estas **no son técnicas** y no se pueden tomar desde el repositorio. Están
